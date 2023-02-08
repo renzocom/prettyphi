@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Name: prettyphi
+Version: 0.1
+Summary: A library to visualize IIT-4.0 cause-effect structures from PyPhi.
+Home-page: https://github.com/renzocom/prettyphi
+Author: Renzo Comolatti & Matteo Grasso
+Author-email: renzo.com@gmail.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: GPL License
+Classifier: Operating System :: OS Independent
+Description-Content-Type: text/markdown
