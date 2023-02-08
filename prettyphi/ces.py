@@ -2,6 +2,7 @@ import networkx as nx
 from . import utils
 from copy import deepcopy
 import numpy as np
+import pyphi
 
 def create_ces_graph(distinctions, relations=None):
     '''
@@ -179,3 +180,16 @@ def filter_relations_by_distinctions(relations, distinctions):
         if all_rel_mechs_in_mechs:
             filtered_rels.append(rel)
     return filtered_rels
+
+def sort_distinctions(distinctions, n_nodes):
+    '''Sort distinctions by mechanism'''
+    all_mechs = list(pyphi.utils.powerset(range(n_nodes), nonempty=True))
+
+    mechs = [d.mechanism for d in distinctions]
+
+    sorted_distinctions = []
+    for m in all_mechs:
+        if m in mechs:
+            ix = mechs.index(m)
+            sorted_distinctions.append(distinctions[ix])
+    return sorted_distinctions

@@ -1,4 +1,13 @@
 import numpy as np
+import pickle
+
+def save_pickle(obj, fpath):
+    with open(fpath, "wb") as f:
+        pickle.dump(obj, f)
+
+def load_pickle(fpath):
+    with open(fpath, "rb") as f:
+        return pickle.load(f)
 
 def is_contiguous(x):
     '''
