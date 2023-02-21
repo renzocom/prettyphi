@@ -4,8 +4,14 @@ from copy import deepcopy
 import numpy as np
 import pyphi
 
-def create_ces_graph(distinctions, relations=None):
+
+
+def create_ces_graph(distinctions, relations=None, superset_constraint=True):
     '''
+    Create CES dict.
+
+    Note: 2-relations only.
+
     Parameters
     ----------
     distinctions
@@ -16,75 +22,102 @@ def create_ces_graph(distinctions, relations=None):
     CES : dict[face-degree] --> networkx graph, i.e. {4 : nx.Graph, 5 : nx.MultiDigraph)
     '''
 
-    def add_distinctions(G, distinctions):
+    def _add_distinctions(G, distinctions):
         for d in distinctions:
             attr = dict(phi=d.phi, node_indices=d.mechanism,
                         node_label=utils.node_ixs2label(d.mechanism, d.node_labels))
             G.add_node(utils.node_ixs2label(d.mechanism, d.node_labels), **attr)
         return G
 
+    def _add_4face_edge():
+        CES[4].add_edge(mech_label1, mech_label2, color='blue', purview=face.purview)
+
+    def _add_3face_edge():
+        triangle_type = eval_rel_3face_type(face)
+        edge_color = 'green' if triangle_type == 'effect' else 'red'
+
+        base_mech = eval_rel_3face_base(face)
+        if base_mech == mech1:
+            arrow_base_label = mech_label1
+            arrow_point_label = mech_label2
+        elif base_mech == mech2:
+            arrow_base_label = mech_label2
+            arrow_point_label = mech_label1
+        else:
+            raise ValueError(f'Inconsistent mechanisms ({mech1}, {mech2}) and {base_mech}')
+
+        CES[3].add_edge(arrow_base_label, arrow_point_label, color=edge_color, purview=face.purview)
+
+    def _add_2face_edge():
+        face_type = eval_rel_2face_type(face)
+        if face_type=='effect_effect':
+            CES[2].add_edge(mech_label1, mech_label2, color='green', purview=face.purview)
+            # CES[2].add_edge(mech_label2, mech_label1, color='green', purview=face.purview)
+
+        elif face_type=='cause_cause':
+            CES[2].add_edge(mech_label1, mech_label2, color='red', purview=face.purview)
+            # CES[2].add_edge(mech_label2, mech_label1, color='red', purview=face.purview)
+
+        elif face_type=='cause_effect':
+            CES[2].add_edge(mech_label1, mech_label2, color='orange', purview=face.purview)
+        else: # effect_cause
+            CES[2].add_edge(mech_label2, mech_label1, color='orange', purview=face.purview)
+
+    relations = filter_relations_by_degree(relations, 2)  # filter 2-relations
+
     CES = {}
     # 4-face graph
     G = nx.Graph()
-    CES[4] = add_distinctions(G, distinctions)
+    CES[4] = _add_distinctions(G, distinctions)
 
     # 3-face multi digraph
     G = nx.MultiDiGraph()
-    CES[3] = add_distinctions(G, distinctions)
+    CES[3] = _add_distinctions(G, distinctions)
 
     # 2-face multi digraph
-    # TODO
-
-    ## 4-face graph
-    relations = filter_relations_by_degree(relations, 2)  # filter 2-relations
+    G = nx.MultiDiGraph()
+    CES[2] = _add_distinctions(G, distinctions)
 
     # ADD RELATIONS
     for rel in relations:
         distinction1, distinction2 = list(rel)
         mech1, mech2 = distinction1.mechanism, distinction2.mechanism
-        label1, label2 = utils.nodes_ixs2label([mech1, mech2], distinction1.node_labels)
+        mech_label1, mech_label2 = utils.nodes_ixs2label([mech1, mech2], distinction1.node_labels)
 
         sorted_faces = sorted(list(rel.faces), key=len, reverse=True)
 
         for face in sorted_faces:
             face_degree = len(face)
             if face_degree == 4:
-                CES[4].add_edge(label1, label2, color='blue', purview=face.purview)
+                _add_4face_edge()
             elif face_degree == 3:
-                # test superset condition!
-
-                add_face3 = False
-                face4_not_present = (label1, label2) not in CES[4].edges  # 4-face exists already
-
-                if face4_not_present:
-                    add_face3 = True
-                else:
-                    face4_purview = CES[4].edges[label1, label2]['purview']
-                    face3_purview = face.purview
-                    is_superset_of_face4 = len(face3_purview) > len(face4_purview)  # 3-face is superset of 4-face
-                    if is_superset_of_face4:
-                        add_face3 = True
-
-                if add_face3:
-                    triangle_type = eval_rel_3face_type(face)
-                    edge_color = 'green' if triangle_type == 'effect' else 'red'
-
-                    base_mech = eval_rel_3face_base(face)
-                    if base_mech == mech1:
-                        arrow_base_label = label1
-                        arrow_point_label = label2
-                    elif base_mech == mech2:
-                        arrow_base_label = label2
-                        arrow_point_label = label1
-                    else:
-                        raise ValueError(f'Inconsistent mechanisms ({mech1}, {mech2}) and {base_mech}')
-
-                    CES[3].add_edge(arrow_base_label, arrow_point_label, color=edge_color, purview=face.purview)
-
+                _add_3face_edge()
+            elif face_degree==2:
+                _add_2face_edge()
             else:
-                # TODO add lower degree faces
                 pass
     return CES
+
+def eval_rel_2face_type(face):
+    '''
+    Returns whether relation 2-face is c-c, e-e, c-e or e-c.
+    '''
+
+    assert len(face) == 2, 'Face is not of 2nd degree.'
+
+    purview1, purview2 = list(face)
+    direction1, direction2 = str(purview1.direction), str(purview2.direction)
+
+    if direction1=='CAUSE' and direction2=='CAUSE':
+        return 'cause_cause'
+    elif direction1=='CAUSE' and direction2=='EFFECT':
+        return 'cause_effect'
+    elif direction1=='EFFECT' and direction2=='CAUSE':
+        return 'effect_cause'
+    elif direction1 == 'EFFECT' and direction2 == 'EFFECT':
+        return 'effect_effect'
+    else:
+        raise ValueError(f'Weird purview directions: {direction1} and {direction2}')
 
 def eval_rel_3face_type(face):
     '''
@@ -114,10 +147,6 @@ def eval_rel_3face_base(face):
     '''
     Returns mechanism of distinction with two purviews in a 3-face relation.
 
-    Parameters
-    ----------
-    face
-
     Returns
     -------
     base_mech : tuple with mechanism indices (e.g. (1, 2, 3))
@@ -131,7 +160,6 @@ def eval_rel_3face_base(face):
         base_mech = unique_mechs[0]
     else:
         base_mech = unique_mechs[1]
-
     return base_mech
 
 def get_max_face(relation):
@@ -157,6 +185,12 @@ def filter_relations_by_degree(relations, degree):
     '''
     return [r for r in relations if len(r) == degree]
 
+def filter_faces_by_degree(faces, degree):
+    '''
+    Filter faces by degree
+    '''
+    return [f for f in list(faces) if len(f) == 4]
+
 def filter_relations_by_distinctions(relations, distinctions):
     '''
     Filter relations within a set of distinctions.
@@ -181,6 +215,71 @@ def filter_relations_by_distinctions(relations, distinctions):
             filtered_rels.append(rel)
     return filtered_rels
 
+
+def is_multi_graph(G):
+    if type(G) in [type(nx.MultiGraph()), type(nx.MultiDiGraph())]:
+        return True
+    else:
+        return False
+
+def filter_ces_by_higher_face_purview_overlap(CES):
+    new_CES = deepcopy(CES)
+    new_CES[3] = filter_G_by_coG_purview_overlap(CES[3], CES[4])
+    new_CES[2] = filter_G_by_coG_purview_overlap(CES[2], CES[4])
+    new_CES[2] = filter_G_by_coG_purview_overlap(CES[2], CES[3])
+    return new_CES
+
+def filter_G_by_coG_purview_overlap(G, coG):
+    '''
+    Filter k-faces graph by k'-faces graph: k-face (edge) is removed if the
+    overlap purview if it is a subset of the overlap purview of a k'-face
+    in that 2-relation.
+
+    Parameters
+    ----------
+    G : constrained ces-graph
+    coG : constraining ces-graph
+    '''
+    is_G_multi = is_multi_graph(G)
+    is_coG_multi = is_multi_graph(coG)
+    edges_to_remove = []
+    if (is_G_multi and not is_coG_multi):
+        for e in G.edges:
+            G_purview = G.edges[e]['purview']
+            co_e = e[:2]
+            if coG.has_edge(*co_e):
+                coG_purview = coG.edges[co_e]['purview']
+                # if len(G_purview) <= len(coG_purview):
+                if G_purview.issubset(coG_purview):
+                    edges_to_remove.append(e)
+
+    elif is_G_multi and is_coG_multi:  # e.g. CES[2] constrained by CES[3]
+        for e in G.edges:
+            flag = True
+            G_purview = G.edges[e]['purview']
+            base_e = e[:2]  # e.g. ('ABC', 'BC', 1) --> ('ABC', 'BC')
+            i = 0
+            while flag:
+                co_e = base_e + (i,)
+                if coG.has_edge(*co_e):
+                    coG_purview = coG.edges[co_e]['purview']
+                    # if len(G_purview) <= len(coG_purview):
+                    # print(e, co_e, G_purview, coG_purview)
+                    if G_purview.issubset(coG_purview):
+                        edges_to_remove.append(e)
+                        flag = False  # edge is subset in coG --> EDGE REMOVED
+                        # print('>> Edge removed.')
+
+                    i += 1  # check next edge (e.g ('ABC', 'BC', 1))
+                else:
+                    flag = False  # edge doesn't exist in coG --> EDGE NOT REMOVED
+    else:
+        raise ValueError('Case not implemented.')
+
+    new_G = G.copy()
+    new_G.remove_edges_from(edges_to_remove)
+    return new_G
+
 def sort_distinctions(distinctions, n_nodes):
     '''Sort distinctions by mechanism'''
     all_mechs = list(pyphi.utils.powerset(range(n_nodes), nonempty=True))
@@ -193,3 +292,24 @@ def sort_distinctions(distinctions, n_nodes):
             ix = mechs.index(m)
             sorted_distinctions.append(distinctions[ix])
     return sorted_distinctions
+
+def decompose_graph_by_edge_attribute(G, attribute):
+    edge_attributes = nx.get_edge_attributes(G, attribute)
+
+    unique_vals = list(set(edge_attributes.values()))
+
+    decomposed_G = {}
+    for val in unique_vals:
+        dG = G.copy()
+        edges_to_remove = [edge for edge, x in edge_attributes.items() if x != val]
+        dG.remove_edges_from(edges_to_remove)
+        decomposed_G[val] = dG
+    return decomposed_G
+
+
+def decompose_ces_by_edge_attribute(CES, attribute):
+    dCES = {}
+    for n, G in CES.items():
+        dG = decompose_graph_by_edge_attribute(G, attribute)
+        dCES[n] = dG
+    return dCES
