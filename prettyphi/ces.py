@@ -227,6 +227,7 @@ def filter_ces_by_higher_face_purview_overlap(CES):
     new_CES[3] = filter_G_by_coG_purview_overlap(CES[3], CES[4])
     new_CES[2] = filter_G_by_coG_purview_overlap(CES[2], CES[4])
     new_CES[2] = filter_G_by_coG_purview_overlap(CES[2], CES[3])
+
     return new_CES
 
 def filter_G_by_coG_purview_overlap(G, coG):
@@ -240,10 +241,12 @@ def filter_G_by_coG_purview_overlap(G, coG):
     G : constrained ces-graph
     coG : constraining ces-graph
     '''
+
     is_G_multi = is_multi_graph(G)
     is_coG_multi = is_multi_graph(coG)
     edges_to_remove = []
     if (is_G_multi and not is_coG_multi):
+        # print('CASE: constrained by 4')
         for e in G.edges:
             G_purview = G.edges[e]['purview']
             co_e = e[:2]
@@ -254,25 +257,33 @@ def filter_G_by_coG_purview_overlap(G, coG):
                     edges_to_remove.append(e)
 
     elif is_G_multi and is_coG_multi:  # e.g. CES[2] constrained by CES[3]
+        # print('CASE: constrained by 3')
         for e in G.edges:
-            flag = True
             G_purview = G.edges[e]['purview']
-            base_e = e[:2]  # e.g. ('ABC', 'BC', 1) --> ('ABC', 'BC')
-            i = 0
-            while flag:
-                co_e = base_e + (i,)
-                if coG.has_edge(*co_e):
-                    coG_purview = coG.edges[co_e]['purview']
-                    # if len(G_purview) <= len(coG_purview):
-                    # print(e, co_e, G_purview, coG_purview)
-                    if G_purview.issubset(coG_purview):
-                        edges_to_remove.append(e)
-                        flag = False  # edge is subset in coG --> EDGE REMOVED
-                        # print('>> Edge removed.')
 
-                    i += 1  # check next edge (e.g ('ABC', 'BC', 1))
-                else:
-                    flag = False  # edge doesn't exist in coG --> EDGE NOT REMOVED
+            # Get constraining edges (co_edges)
+            base_e1 = e[:2]  # e.g. ('ABC', 'BC', 1) --> ('ABC', 'BC')
+            base_e2 = (base_e1[1], base_e1[0])  # inverted edge e.g. ('BC', 'ABC')
+            co_edges = []
+            for base_e in [base_e1, base_e2]:
+                i = 0
+                flag = True
+                while flag:
+                    co_e = base_e + (i,)
+                    if coG.has_edge(*co_e):
+                        co_edges.append(co_e)
+                        i += 1
+                    else:
+                        flag = False
+            # Test constrained edge (e) against constraining edges (co_edges
+            for co_e in co_edges:
+                coG_purview = coG.edges[co_e]['purview']
+                # print(f"e:{e} -> p:{str(G_purview).upper()} | co_e:{co_e} -> co_p:{str(coG_purview).upper()}")
+
+                if G_purview.issubset(coG_purview):
+                    edges_to_remove.append(e)
+                    # print('>> Edge removed.')
+                    break  # edge is subset in coG --> EDGE REMOVED
     else:
         raise ValueError('Case not implemented.')
 

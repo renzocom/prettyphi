@@ -2,18 +2,18 @@ from . import layout, utils
 import matplotlib.pyplot as plt
 import networkx as nx
 
-def plot_circular_ces_graph(CES):
+def plot_circular_ces_graph(CES, figsize=(15, 5)):
     pos = nx.layout.circular_layout(CES[3], scale=1)
     pos_labels = nx.layout.circular_layout(CES[3], scale=1.3)
     # pos_labels = offset_pos(pos, x=0, y=0.15)
-    _plot_ces_graph(CES, pos, pos_labels)
+    _plot_ces_graph(CES, pos, pos_labels, figsize=figsize)
 
-def plot_hasse_ces_graph(CES, n_nodes, node_labels):
+def plot_hasse_ces_graph(CES, n_nodes, node_labels, figsize=(15, 5)):
     pos = layout.hasse_layout(n_nodes)
     pos = {utils.node_ixs2label(mech, node_labels): xy for mech, xy in pos.items()}
     pos_labels = layout.offset_pos(pos, x=0, y=0.35)
 
-    _plot_ces_graph(CES, pos, pos_labels)
+    _plot_ces_graph(CES, pos, pos_labels, figsize=figsize)
 
 def plot_graph(G, pos, pos_labels, ax=None, edgecolor_field='color'):
     '''
@@ -33,8 +33,8 @@ def plot_graph(G, pos, pos_labels, ax=None, edgecolor_field='color'):
     # edge_labels = nx.get_edge_attributes(G, 'purview')
     # nx.draw_networkx_edge_labels(CES[3], pos, edge_labels=edge_labels)
 
-def _plot_ces_graph(CES, pos, pos_labels):
-    fig, axes = plt.subplots(ncols=3, figsize=(15, 5))
+def _plot_ces_graph(CES, pos, pos_labels, figsize=(15, 5)):
+    fig, axes = plt.subplots(ncols=3, figsize=figsize)
     # 4-FACES
     ax = axes[0]
     plot_graph(CES[4], pos, pos_labels, ax=ax, edgecolor_field='color')
