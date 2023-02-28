@@ -4,8 +4,6 @@ from copy import deepcopy
 import numpy as np
 import pyphi
 
-
-
 def create_ces_graph(distinctions, relations=None, superset_constraint=True):
     '''
     Create CES dict.
@@ -215,6 +213,22 @@ def filter_relations_by_distinctions(relations, distinctions):
             filtered_rels.append(rel)
     return filtered_rels
 
+def filter_ces_to_context(CES, distinction_labels, external=True):
+    '''
+    Filter CES to the context of a list of distinctions (given by its mechanism labels)
+    '''
+    condition = any if external else all
+    new_CES = deepcopy(CES)
+
+    edges_to_remove = []
+    for n, G in new_CES.items():
+        for e in G.edges:
+            mechs = e[:2] if is_multi_graph(G) else e
+
+            if not condition(m in distinction_labels for m in mechs):
+                edges_to_remove.append(e)
+        new_CES[n].remove_edges_from(edges_to_remove)
+    return new_CES
 
 def is_multi_graph(G):
     if type(G) in [type(nx.MultiGraph()), type(nx.MultiDiGraph())]:
@@ -323,4 +337,32 @@ def decompose_ces_by_edge_attribute(CES, attribute):
     for n, G in CES.items():
         dG = decompose_graph_by_edge_attribute(G, attribute)
         dCES[n] = dG
+    return dCES
+
+def _fix_decomposed_facecolor_ces_graph(dCES):
+    '''
+    Add missing graphs and fix order for plotting.
+    '''
+    # 4-face
+    if 'blue' not in dCES[4].keys():
+        dCES[4]['blue'] = nx.Graph()
+    # 3-face
+    for c in ['green', 'red']:
+        if c not in dCES[3].keys():
+            dCES[3][c] = nx.MultiDiGraph()
+    # 2-face
+    if 'orange' not in dCES[2].keys():
+        dCES[2]['orange'] = nx.MultiDiGraph()
+
+    for c in ['green', 'red']:
+        if c in dCES[2].keys():
+            dCES[2][c] = dCES[2][c].to_undirected()
+        else:
+            dCES[2][c] = nx.MultiGraph()
+    dCES[2] = {k:dCES[2][k] for k in ['green', 'red', 'orange']}
+    return dCES
+
+def decompose_ces_by_facecolor(CES, facecolor_attribute='color'):
+    dCES = decompose_ces_by_edge_attribute(CES, facecolor_attribute)
+    dCES = _fix_decomposed_facecolor_ces_graph(dCES)
     return dCES

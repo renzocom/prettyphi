@@ -27,7 +27,13 @@ def offset_pos(pos, x=0, y=0):
 def circular_layout(G, scale=1, center=None, dim=2):
     return nx.layout.circular_layout(G, scale=scale, center=center, dim=dim)
 
-def hasse_layout(n_elements, warp=0, triangle_base=1, warp_mode='exponential'):
+def hasse_layout(G, node_labels, warp=0.):
+    n_nodes = len(node_labels)
+    pos = _hasse_layout(n_nodes, warp=warp)
+    pos = {utils.node_ixs2label(mech, node_labels): xy for mech, xy in pos.items()}
+    return pos
+
+def _hasse_layout(n_elements, warp=0, triangle_base=1, warp_mode='exponential'):
     '''
     Generates the Hasse diagram layout out of the contiguous sets in the powerset of 'n_elements'.
 
