@@ -4,7 +4,7 @@ from copy import deepcopy
 import numpy as np
 import pyphi
 
-def create_ces_graph(distinctions, relations=None, superset_constraint=True):
+def create_ces_graph(distinctions, relations=None, invert_3face_edge=True):
     '''
     Create CES dict.
 
@@ -30,19 +30,30 @@ def create_ces_graph(distinctions, relations=None, superset_constraint=True):
     def _add_4face_edge():
         CES[4].add_edge(mech_label1, mech_label2, color='blue', purview=face.purview)
 
-    def _add_3face_edge():
+    def _add_3face_edge(invert_3face_edge):
         triangle_type = eval_rel_3face_type(face)
         edge_color = 'green' if triangle_type == 'effect' else 'red'
 
         base_mech = eval_rel_3face_base(face)
-        if base_mech == mech1:
-            arrow_base_label = mech_label1
-            arrow_point_label = mech_label2
-        elif base_mech == mech2:
-            arrow_base_label = mech_label2
-            arrow_point_label = mech_label1
-        else:
-            raise ValueError(f'Inconsistent mechanisms ({mech1}, {mech2}) and {base_mech}')
+
+        if not invert_3face_edge: # original
+            if base_mech == mech1:
+                arrow_base_label = mech_label1
+                arrow_point_label = mech_label2
+            elif base_mech == mech2:
+                arrow_base_label = mech_label2
+                arrow_point_label = mech_label1
+            else:
+                raise ValueError(f'Inconsistent mechanisms ({mech1}, {mech2}) and {base_mech}')
+        else: # new proposed convention
+            if base_mech == mech1:
+                arrow_base_label = mech_label2
+                arrow_point_label = mech_label1
+            elif base_mech == mech2:
+                arrow_base_label = mech_label1
+                arrow_point_label = mech_label2
+            else:
+                raise ValueError(f'Inconsistent mechanisms ({mech1}, {mech2}) and {base_mech}')
 
         CES[3].add_edge(arrow_base_label, arrow_point_label, color=edge_color, purview=face.purview)
 
@@ -89,7 +100,7 @@ def create_ces_graph(distinctions, relations=None, superset_constraint=True):
             if face_degree == 4:
                 _add_4face_edge()
             elif face_degree == 3:
-                _add_3face_edge()
+                _add_3face_edge(invert_3face_edge=invert_3face_edge)
             elif face_degree==2:
                 _add_2face_edge()
             else:
@@ -212,6 +223,9 @@ def filter_relations_by_distinctions(relations, distinctions):
         if all_rel_mechs_in_mechs:
             filtered_rels.append(rel)
     return filtered_rels
+
+def filter_ces_graph_to_context(G, seed):
+    return G.subgraph([seed])
 
 def filter_ces_to_context(CES, distinction_labels, external=True):
     '''
@@ -366,3 +380,4 @@ def decompose_ces_by_facecolor(CES, facecolor_attribute='color'):
     dCES = decompose_ces_by_edge_attribute(CES, facecolor_attribute)
     dCES = _fix_decomposed_facecolor_ces_graph(dCES)
     return dCES
+

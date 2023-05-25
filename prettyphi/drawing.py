@@ -32,23 +32,35 @@ def plot_ces_graph(CES, pos, pos_labels=None, figsize=(15, 5)):
     plot_graph(CES[2], pos, pos_labels=pos_labels, ax=ax, edgecolor_field='color')
     ax.set_title('2-Faces')
 
-def plot_graph(G, pos, pos_labels=None, ax=None, edgecolor_field='color'):
+def plot_graph(G,
+               pos=None,
+               pos_labels=None,
+               node_colors='tab:blue',
+               node_labels=None,
+               node_size=300,
+               node_label_fontsize=12,
+               ax=None,
+               edgecolor_field=None,
+               edgecolor=None):
     '''
     '''
     if ax is None:
         fig, ax = plt.subplots()
 
     ax.set_aspect('equal', adjustable='box')
-    nx.draw_networkx_nodes(G, pos=pos, ax=ax, edgecolors='k', margins=0.2)
+
+    nx.draw_networkx_nodes(G, pos=pos, ax=ax, node_size=node_size, node_color=node_colors, edgecolors='k', margins=0.2)
 
     if edgecolor_field is not None:
         edge_colors = nx.get_edge_attributes(G, edgecolor_field)
         nx.draw_networkx_edges(G, pos=pos, ax=ax, edge_color=edge_colors.values())
+    elif edgecolor is not None:
+        nx.draw_networkx_edges(G, pos=pos, ax=ax, edge_color=edgecolor)
     else:
-        nx.draw_networkx_edges(G, pos=pos, ax=ax, edge_color='k')
+        nx.draw_networkx_edges(G, pos=pos, ax=ax, edge_color='lightgray')
 
     if pos_labels is not None:
-        nx.draw_networkx_labels(G, pos_labels, ax=ax);
+        nx.draw_networkx_labels(G, pos_labels, labels=node_labels, ax=ax, font_size=node_label_fontsize);
     # edge_labels = nx.get_edge_attributes(G, 'purview')
     # nx.draw_networkx_edge_labels(CES[3], pos, edge_labels=edge_labels)
 
